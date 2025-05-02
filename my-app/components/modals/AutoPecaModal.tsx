@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
+import { IAutoPecas } from '@/interfaces/IAutoPecas';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, StyleSheet, TextInput, Button } from 'react-native';
 
 type AutoPecaModalProps = {
   visible: boolean;
   onCancel: () => void;
-  onAdd: (name: string, description: string) => void;
+  onAdd: (name: string, description: string, id: number) => void;
+  onDelete: (id: number) => void;
+  autopeca?: IAutoPecas;
 };
 
-export default function AutoPecaModal({ visible, onCancel, onAdd }: AutoPecaModalProps) {
+export default function AutoPecaModal({ visible, onCancel, onAdd, onDelete, autopeca }: AutoPecaModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
-  const handleAdd = () => {
-    if (name.trim() && description.trim()) {
-      onAdd(name, description);
+  useEffect(() => {
+    if (autopeca) {
+      setName(autopeca.name);
+      setDescription(autopeca.description);
+    } else {
       setName('');
       setDescription('');
+    }
+  }, [autopeca, visible]);
+
+  const handleAdd = () => {
+    if (name.trim() && description.trim()) {
+      onAdd(name, description, autopeca?.cod ?? 0);
+      setName('');
+      setDescription('');
+    }
+  };
+
+  const handleDelete = () => {
+    if (autopeca) {
+      onDelete(autopeca.cod);
     }
   };
 
@@ -24,7 +43,7 @@ export default function AutoPecaModal({ visible, onCancel, onAdd }: AutoPecaModa
       visible={visible}
       animationType="fade"
       transparent={true}
-      onRequestClose={onCancel} 
+      onRequestClose={onCancel}
     >
       <View style={styles.container}>
         <View style={styles.boxContainer}>
@@ -41,8 +60,15 @@ export default function AutoPecaModal({ visible, onCancel, onAdd }: AutoPecaModa
             onChangeText={setDescription}
           />
           <View style={styles.buttonContainer}>
-            <Button title="Adicionar" onPress={handleAdd} />
-            <Button title="Cancelar" onPress={onCancel} color="red" />
+            <View style={styles.buttonWrapper}>
+              <Button title="Adicionar" onPress={handleAdd} />
+            </View>
+            <View style={styles.buttonWrapper}>
+              <Button title="Cancelar" onPress={onCancel} color="red" />
+            </View>
+            <View style={styles.buttonWrapper}>
+              <Button title="Excluir" onPress={handleDelete} color="orange" />
+            </View>
           </View>
         </View>
       </View>
@@ -75,5 +101,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  buttonWrapper: {
+    flex: 1,
+    marginHorizontal: 4,
   },
 });
