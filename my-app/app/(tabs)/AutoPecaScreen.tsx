@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#00000099',
     justifyContent: 'space-between',
-    alignItems: 'center',components/modals/AutoPecaModal.tsx
+    //alignItems: 'center',components/modals/AutoPecaModal.tsx
   },
   boxContainer: {
     width: '80%',

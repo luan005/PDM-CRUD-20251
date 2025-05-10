@@ -2,14 +2,47 @@ import { StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import Estoque from '@/components/estoque/Estoque';
 import MyScrollView from '@/components/MyScrollView';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IEstoque } from '@/interfaces/IEstoque';
 import EstoqueModal from '@/components/modals/EstoqueModal';
+import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function EstoqueListScreen() {
   const [estoque, setEstoque] = useState<IEstoque[]>([]);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<IEstoque | undefined>(undefined);
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    async function getData() {
+      try {
+        const data = await AsyncStorage.getItem("@OficinaApp:estoque");
+        const estoqueData = data != null ? JSON.parse(data) : [];
+        setEstoque(estoqueData);
+      } catch (e) {
+        console.error("Erro ao carregar dados do estoque:", e);
+      }
+    }
+
+    getData();
+  }, []);
+
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permissão de localização negada');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+    })();
+  }, []);
 
   const openModal = () => {
     setSelectedItem(undefined);
@@ -26,25 +59,42 @@ export default function EstoqueListScreen() {
     setModalVisible(false);
   };
 
-  const onAdd = (name: string, tipo: string, quantidade: string, valor: string, id: number) => {
+  const salvarEstoque = async (lista: IEstoque[]) => {
+    setEstoque(lista);
+    await AsyncStorage.setItem("@OficinaApp:estoque", JSON.stringify(lista));
+  };
+
+  const onAdd = (
+    name: string,
+    tipo: string,
+    quantidade: string,
+    valor: string,
+    id: number
+  ) => {
     if (id !== 0) {
-      const updated = estoque.map(e => e.cod === id ? { ...e, name, tipo, quantidade_em_estoque: quantidade, valor_unitario: valor } : e);
-      setEstoque(updated);
+      const updated = estoque.map(item =>
+        item.cod === id
+          ? { ...item, name, tipo, quantidade_em_estoque: quantidade, valor_unitario: valor }
+          : item
+      );
+      salvarEstoque(updated);
     } else {
       const newItem: IEstoque = {
-        cod: Math.random() * 1000,
+        cod: Date.now(),
         name,
         tipo,
         quantidade_em_estoque: quantidade,
         valor_unitario: valor,
       };
-      setEstoque([...estoque, newItem]);
+      const updatedList = [...estoque, newItem];
+      salvarEstoque(updatedList);
     }
     closeModal();
   };
 
   const onDelete = (id: number) => {
-    setEstoque(prev => prev.filter(item => item.cod !== id));
+    const filtered = estoque.filter(item => item.cod !== id);
+    salvarEstoque(filtered);
     closeModal();
   };
 
@@ -67,6 +117,12 @@ export default function EstoqueListScreen() {
             />
           </TouchableOpacity>
         ))}
+        {location && (
+          <Text style={styles.locationText}>
+            Localização: {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
+          </Text>
+        )}
+        {errorMsg && <Text style={styles.locationText}>{errorMsg}</Text>}
       </ThemedView>
 
       <EstoqueModal
@@ -84,6 +140,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'gray',
+    paddingBottom: 16,
   },
   headerContainer: {
     backgroundColor: 'white',
@@ -95,6 +152,9 @@ const styles = StyleSheet.create({
     fontSize: 32,
     paddingHorizontal: 20,
   },
+  locationText: {
+    textAlign: 'center',
+    color: '#fff',
+    marginTop: 10,
+  },
 });
-
-   

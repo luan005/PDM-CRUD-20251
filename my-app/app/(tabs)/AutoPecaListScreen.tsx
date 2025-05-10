@@ -2,14 +2,45 @@ import { StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import AutoPeca from '@/components/autopecas/Autopeca';
 import MyScrollView from '@/components/MyScrollView';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IAutoPecas } from '@/interfaces/IAutoPecas';
 import AutoPecaModal from '@/components/modals/AutoPecaModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 
 export default function AutoPecaListScreen() {
   const [autopecas, setAutopecas] = useState<IAutoPecas[]>([]);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [selectedAutoPeca, setSelectedAutoPeca] = useState<IAutoPecas | undefined>(undefined);
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function getData() {
+      try {
+        const data = await AsyncStorage.getItem("@OficinaApp:autopeca");
+        const autopecaData = data != null ? JSON.parse(data) : [];
+        setAutopecas(autopecaData);
+      } catch (e) {
+        console.error("Erro ao carregar dados:", e);
+      }
+    }
+
+    getData();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setErrorMsg('Permissão de localização negada');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+    })();
+  }, []);
 
   function onAdd(name: string, description: string, id: number) {
     if (id !== 0) {
@@ -17,13 +48,16 @@ export default function AutoPecaListScreen() {
         item.cod === id ? { ...item, name, description } : item
       );
       setAutopecas(updated);
+      AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(updated));
     } else {
       const newAutoPeca: IAutoPecas = {
-        cod: Math.random() * 1000,
+        cod: Date.now(),
         name,
-        description
+        description,
       };
-      setAutopecas([...autopecas, newAutoPeca]);
+      const updatedList = [...autopecas, newAutoPeca];
+      setAutopecas(updatedList);
+      AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(updatedList));
     }
 
     setModalVisible(false);
@@ -41,14 +75,15 @@ export default function AutoPecaListScreen() {
   };
 
   const closeModal = () => {
-    setModalVisible(false);
     setSelectedAutoPeca(undefined);
+    setModalVisible(false);
   };
 
   const handleDelete = (id: number) => {
-    setAutopecas(prev => prev.filter(item => item.cod !== id));
-    setModalVisible(false);
-    setSelectedAutoPeca(undefined);
+    const filtered = autopecas.filter(item => item.cod !== id);
+    setAutopecas(filtered);
+    AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(filtered));
+    closeModal();
   };
 
   return (
@@ -65,6 +100,12 @@ export default function AutoPecaListScreen() {
             <AutoPeca name={autopeca.name} description={autopeca.description} />
           </TouchableOpacity>
         ))}
+        {location && (
+          <Text style={styles.locationText}>
+            Localização: {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
+          </Text>
+        )}
+        {errorMsg && <Text style={styles.locationText}>{errorMsg}</Text>}
       </ThemedView>
 
       <AutoPecaModal
@@ -82,6 +123,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'gray',
+    paddingBottom: 16,
   },
   headerContainer: {
     backgroundColor: 'white',
@@ -92,5 +134,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 32,
     paddingHorizontal: 20,
+  },
+  locationText: {
+    textAlign: 'center',
+    color: '#fff',
+    marginTop: 10,
   },
 });
