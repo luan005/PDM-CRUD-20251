@@ -7,6 +7,7 @@ import { IAutoPecas } from '@/interfaces/IAutoPecas';
 import AutoPecaModal from '@/components/modals/AutoPecaModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import { router } from 'expo-router';
 
 export default function AutoPecaListScreen() {
   const [autopecas, setAutopecas] = useState<IAutoPecas[]>([]);
@@ -31,46 +32,18 @@ export default function AutoPecaListScreen() {
 
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setErrorMsg('Permissão de localização negada');
         return;
       }
-
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
     })();
   }, []);
 
-  function onAdd(name: string, description: string, id: number) {
-    if (id !== 0) {
-      const updated = autopecas.map(item =>
-        item.cod === id ? { ...item, name, description } : item
-      );
-      setAutopecas(updated);
-      AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(updated));
-    } else {
-      const newAutoPeca: IAutoPecas = {
-        cod: Date.now(),
-        name,
-        description,
-      };
-      const updatedList = [...autopecas, newAutoPeca];
-      setAutopecas(updatedList);
-      AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(updatedList));
-    }
-
-    setModalVisible(false);
-    setSelectedAutoPeca(undefined);
-  }
-
   const openModal = () => {
     setSelectedAutoPeca(undefined);
-    setModalVisible(true);
-  };
-
-  const editModal = (autopeca: IAutoPecas) => {
-    setSelectedAutoPeca(autopeca);
     setModalVisible(true);
   };
 
@@ -79,11 +52,37 @@ export default function AutoPecaListScreen() {
     setModalVisible(false);
   };
 
-  const handleDelete = (id: number) => {
-    const filtered = autopecas.filter(item => item.cod !== id);
-    setAutopecas(filtered);
-    AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(filtered));
+  const salvarAutopecas = async (lista: IAutoPecas[]) => {
+    setAutopecas(lista);
+    await AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(lista));
+  };
+
+  const onAdd = (name: string, description: string, id: number) => {
+    if (id !== 0) {
+      const updated = autopecas.map(item =>
+        item.cod === id ? { ...item, name, description } : item
+      );
+      salvarAutopecas(updated);
+    } else {
+      const newAutoPeca: IAutoPecas = {
+        cod: Date.now(),
+        name,
+        description,
+      };
+      const updatedList = [...autopecas, newAutoPeca];
+      salvarAutopecas(updatedList);
+    }
     closeModal();
+  };
+
+  const onDelete = (id: number) => {
+    const filtered = autopecas.filter(item => item.cod !== id);
+    salvarAutopecas(filtered);
+    closeModal();
+  };
+
+  const navigateToDetails = (selectedAutoPeca: IAutoPecas) => {
+    router.push({ pathname: 'Screens/AutoPecaDetailScreen', params: { autoPecaCod: selectedAutoPeca.cod.toString() } });
   };
 
   return (
@@ -96,8 +95,11 @@ export default function AutoPecaListScreen() {
 
       <ThemedView style={styles.container}>
         {autopecas.map(autopeca => (
-          <TouchableOpacity key={autopeca.cod} onPress={() => editModal(autopeca)}>
-            <AutoPeca name={autopeca.name} description={autopeca.description} />
+          <TouchableOpacity key={autopeca.cod} onPress={() => navigateToDetails(autopeca)}>
+            <AutoPeca
+              name={autopeca.name}
+              description={autopeca.description}
+            />
           </TouchableOpacity>
         ))}
         {location && (
@@ -112,7 +114,7 @@ export default function AutoPecaListScreen() {
         visible={modalVisible}
         onCancel={closeModal}
         onAdd={onAdd}
-        onDelete={handleDelete}
+        onDelete={onDelete}
         autopeca={selectedAutoPeca}
       />
     </MyScrollView>

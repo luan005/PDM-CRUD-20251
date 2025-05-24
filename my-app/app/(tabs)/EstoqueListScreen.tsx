@@ -7,6 +7,7 @@ import { IEstoque } from '@/interfaces/IEstoque';
 import EstoqueModal from '@/components/modals/EstoqueModal';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
 export default function EstoqueListScreen() {
   const [estoque, setEstoque] = useState<IEstoque[]>([]);
@@ -14,7 +15,6 @@ export default function EstoqueListScreen() {
   const [selectedItem, setSelectedItem] = useState<IEstoque | undefined>(undefined);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
 
   useEffect(() => {
     async function getData() {
@@ -26,21 +26,18 @@ export default function EstoqueListScreen() {
         console.error("Erro ao carregar dados do estoque:", e);
       }
     }
-
     getData();
   }, []);
 
-
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setErrorMsg('Permissão de localização negada');
         return;
       }
-
-      let location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
     })();
   }, []);
 
@@ -64,13 +61,7 @@ export default function EstoqueListScreen() {
     await AsyncStorage.setItem("@OficinaApp:estoque", JSON.stringify(lista));
   };
 
-  const onAdd = (
-    name: string,
-    tipo: string,
-    quantidade: string,
-    valor: string,
-    id: number
-  ) => {
+  const onAdd = (name: string, tipo: string, quantidade: string, valor: string, id: number) => {
     if (id !== 0) {
       const updated = estoque.map(item =>
         item.cod === id
@@ -98,6 +89,10 @@ export default function EstoqueListScreen() {
     closeModal();
   };
 
+  const navigateToDetails = (selectedItem: IEstoque) => {
+    router.push({ pathname: 'Screens/EstoqueDetailScreen', params: { estoqueCod: selectedItem.cod.toString() } });
+  };
+
   return (
     <MyScrollView headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}>
       <ThemedView style={styles.headerContainer}>
@@ -108,7 +103,7 @@ export default function EstoqueListScreen() {
 
       <ThemedView style={styles.container}>
         {estoque.map(item => (
-          <TouchableOpacity key={item.cod} onPress={() => editModal(item)}>
+          <TouchableOpacity key={item.cod} onPress={() => navigateToDetails(item)}>
             <Estoque
               name={item.name}
               tipo={item.tipo}
