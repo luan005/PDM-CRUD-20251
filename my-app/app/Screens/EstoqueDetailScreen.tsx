@@ -4,11 +4,13 @@ import { useLocalSearchParams, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IEstoque } from '@/interfaces/IEstoque';
 import { ThemedView } from '@/components/ThemedView';
+import EstoqueModal from '@/components/modals/EstoqueModal';
 
 export default function EstoqueDetailScreen() {
   const { estoqueCod } = useLocalSearchParams();
   const [estoqueItem, setEstoqueItem] = useState<IEstoque | undefined>(undefined);
   const [estoque, setEstoque] = useState<IEstoque[]>([]);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
 
   useEffect(() => {
     async function getData() {
@@ -17,8 +19,10 @@ export default function EstoqueDetailScreen() {
         const estoqueData: IEstoque[] = data != null ? JSON.parse(data) : [];
         setEstoque(estoqueData);
 
-        const itemEncontrado = estoqueData.find(item => item.cod.toString() === estoqueCod);
-        setEstoqueItem(itemEncontrado);
+        const encontrado = estoqueData.find(item => item.cod.toString() === estoqueCod);
+        setEstoqueItem(encontrado);
+
+        // ❌ Não abre modal automaticamente
       } catch (e) {
         console.error("Erro ao carregar detalhes do estoque:", e);
       }
@@ -35,6 +39,27 @@ export default function EstoqueDetailScreen() {
     }
   };
 
+  const onEdit = (name: string, tipo: string, quantidade: string, valor: string, id: number) => {
+    const updated = estoque.map(item =>
+      item.cod === id ? { ...item, name, tipo, quantidade_em_estoque: quantidade, valor_unitario: valor } : item
+    );
+    setEstoque(updated);
+    AsyncStorage.setItem("@OficinaApp:estoque", JSON.stringify(updated));
+
+    const atualizado = updated.find(item => item.cod === id);
+    setEstoqueItem(atualizado);
+
+    setModalVisible(false);
+  };
+
+  const openModal = () => {
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
   return (
     <View>
       <ThemedView style={styles.headerContainer}>
@@ -42,20 +67,34 @@ export default function EstoqueDetailScreen() {
           <Text style={styles.headerButton}>X</Text>
         </TouchableOpacity>
       </ThemedView>
-      <View style={styles.box}>
-        <Text style={styles.title}>
-          {estoqueItem ? estoqueItem.name : ''}
-        </Text>
-        <Text style={styles.subTitle}>
-          Tipo: {estoqueItem ? estoqueItem.tipo : ''}
-        </Text>
-        <Text style={styles.subTitle}>
-          Quantidade: {estoqueItem ? estoqueItem.quantidade_em_estoque : ''}
-        </Text>
-        <Text style={styles.subTitle}>
-          Valor Unitário: {estoqueItem ? estoqueItem.valor_unitario : ''}
-        </Text>
-      </View>
+
+      {/* ✅ O item agora é clicável para abrir o modal */}
+      <TouchableOpacity onPress={openModal}>
+        <View style={styles.box}>
+          <Text style={styles.title}>
+            {estoqueItem ? estoqueItem.name : ''}
+          </Text>
+          <Text style={styles.subTitle}>
+            Tipo: {estoqueItem ? estoqueItem.tipo : ''}
+          </Text>
+          <Text style={styles.subTitle}>
+            Quantidade: {estoqueItem ? estoqueItem.quantidade_em_estoque : ''}
+          </Text>
+          <Text style={styles.subTitle}>
+            Valor Unitário: {estoqueItem ? estoqueItem.valor_unitario : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {estoqueItem && (
+        <EstoqueModal
+          visible={modalVisible}
+          onCancel={closeModal}
+          onAdd={onEdit}
+          onDelete={onDelete}
+          estoqueItem={estoqueItem}
+        />
+      )}
     </View>
   );
 }

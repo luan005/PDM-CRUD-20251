@@ -4,11 +4,13 @@ import { useLocalSearchParams, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IAutoPecas } from '@/interfaces/IAutoPecas';
 import { ThemedView } from '@/components/ThemedView';
+import AutoPecaModal from '@/components/modals/AutoPecaModal';
 
 export default function AutoPecaDetailScreen() {
   const { autoPecaCod } = useLocalSearchParams();
   const [autoPecaForDetail, setAutoPecaForDetail] = useState<IAutoPecas>();
   const [autoPecas, setAutoPecas] = useState<IAutoPecas[]>([]);
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
 
   useEffect(() => {
     async function getData() {
@@ -19,6 +21,8 @@ export default function AutoPecaDetailScreen() {
 
         const encontrado = autopecaData.find(item => item.cod.toString() === autoPecaCod);
         setAutoPecaForDetail(encontrado);
+
+        // ❌ Não abre mais automaticamente
       } catch (e) {
         console.error("Erro ao carregar detalhes:", e);
       }
@@ -35,6 +39,27 @@ export default function AutoPecaDetailScreen() {
     }
   };
 
+  const onEdit = (name: string, description: string, id: number) => {
+    const updated = autoPecas.map(item =>
+      item.cod === id ? { ...item, name, description } : item
+    );
+    setAutoPecas(updated);
+    AsyncStorage.setItem("@OficinaApp:autopeca", JSON.stringify(updated));
+
+    const atualizado = updated.find(item => item.cod === id);
+    setAutoPecaForDetail(atualizado);
+
+    setModalVisible(false);
+  };
+
+  const openModal = () => {
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
   return (
     <View>
       <ThemedView style={styles.headerContainer}>
@@ -42,14 +67,28 @@ export default function AutoPecaDetailScreen() {
           <Text style={styles.headerButton}>X</Text>
         </TouchableOpacity>
       </ThemedView>
-      <View style={styles.box}>
-        <Text style={styles.title}>
-          {autoPecaForDetail ? autoPecaForDetail.name : ''}
-        </Text>
-        <Text style={styles.subTitle}>
-          {autoPecaForDetail ? autoPecaForDetail.description : ''}
-        </Text>
-      </View>
+
+      {/* ✅ O item agora é clicável para abrir o modal */}
+      <TouchableOpacity onPress={openModal}>
+        <View style={styles.box}>
+          <Text style={styles.title}>
+            {autoPecaForDetail ? autoPecaForDetail.name : ''}
+          </Text>
+          <Text style={styles.subTitle}>
+            {autoPecaForDetail ? autoPecaForDetail.description : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {autoPecaForDetail && (
+        <AutoPecaModal
+          visible={modalVisible}
+          onCancel={closeModal}
+          onAdd={onEdit}
+          onDelete={onDelete}
+          autopeca={autoPecaForDetail}
+        />
+      )}
     </View>
   );
 }
