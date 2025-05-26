@@ -22,7 +22,6 @@ export default function AutoPecaDetailScreen() {
         const encontrado = autopecaData.find(item => item.cod.toString() === autoPecaCod);
         setAutoPecaForDetail(encontrado);
 
-        // ❌ Não abre mais automaticamente
       } catch (e) {
         console.error("Erro ao carregar detalhes:", e);
       }
@@ -68,7 +67,6 @@ export default function AutoPecaDetailScreen() {
         </TouchableOpacity>
       </ThemedView>
 
-      {/* ✅ O item agora é clicável para abrir o modal */}
       <TouchableOpacity onPress={openModal}>
         <View style={styles.box}>
           <Text style={styles.title}>

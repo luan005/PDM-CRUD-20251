@@ -4,106 +4,49 @@ import Estoque from '@/components/estoque/Estoque';
 import MyScrollView from '@/components/MyScrollView';
 import { useEffect, useState } from 'react';
 import { IEstoque } from '@/interfaces/IEstoque';
-import EstoqueModal from '@/components/modals/EstoqueModal';
-import * as Location from 'expo-location';
+import { useLocalSearchParams, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 
 export default function EstoqueListScreen() {
   const [estoque, setEstoque] = useState<IEstoque[]>([]);
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [selectedItem, setSelectedItem] = useState<IEstoque | undefined>(undefined);
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { estoqueCod } = useLocalSearchParams();
 
   useEffect(() => {
     async function getData() {
-      try {
-        const data = await AsyncStorage.getItem("@OficinaApp:estoque");
-        const estoqueData = data != null ? JSON.parse(data) : [];
-        setEstoque(estoqueData);
-      } catch (e) {
-        console.error("Erro ao carregar dados do estoque:", e);
-      }
+      const data = await AsyncStorage.getItem("@OficinaApp:estoque");
+      const estoqueData: IEstoque[] = data != null ? JSON.parse(data) : [];
+      setEstoque(estoqueData);
     }
     getData();
   }, []);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setErrorMsg('Permissão de localização negada');
-        return;
-      }
-      const currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-    })();
-  }, []);
-
-  const openModal = () => {
-    setSelectedItem(undefined);
-    setModalVisible(true);
-  };
-
-  const editModal = (item: IEstoque) => {
-    setSelectedItem(item);
-    setModalVisible(true);
-  };
-
-  const closeModal = () => {
-    setSelectedItem(undefined);
-    setModalVisible(false);
-  };
-
-  const salvarEstoque = async (lista: IEstoque[]) => {
-    setEstoque(lista);
-    await AsyncStorage.setItem("@OficinaApp:estoque", JSON.stringify(lista));
-  };
-
-  const onAdd = (name: string, tipo: string, quantidade: string, valor: string, id: number) => {
-    if (id !== 0) {
-      const updated = estoque.map(item =>
-        item.cod === id
-          ? { ...item, name, tipo, quantidade_em_estoque: quantidade, valor_unitario: valor }
-          : item
-      );
-      salvarEstoque(updated);
-    } else {
-      const newItem: IEstoque = {
-        cod: Date.now(),
-        name,
-        tipo,
-        quantidade_em_estoque: quantidade,
-        valor_unitario: valor,
-      };
-      const updatedList = [...estoque, newItem];
-      salvarEstoque(updatedList);
+    if (estoqueCod) {
+      router.replace({
+        pathname: 'Screens/EstoqueEditScreen',
+        params: { estoqueCod: estoqueCod.toString() }
+      });
     }
-    closeModal();
-  };
+  }, [estoqueCod]);
 
-  const onDelete = (id: number) => {
-    const filtered = estoque.filter(item => item.cod !== id);
-    salvarEstoque(filtered);
-    closeModal();
-  };
-
-  const navigateToDetails = (selectedItem: IEstoque) => {
-    router.push({ pathname: 'Screens/EstoqueDetailScreen', params: { estoqueCod: selectedItem.cod.toString() } });
+  const navigateToEdit = (selectedItem: IEstoque) => {
+    router.push({
+      pathname: 'Screens/EstoqueEditScreen',
+      params: { estoqueCod: selectedItem.cod.toString() }
+    });
   };
 
   return (
     <MyScrollView headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}>
       <ThemedView style={styles.headerContainer}>
-        <TouchableOpacity onPress={openModal}>
+        <TouchableOpacity onPress={() => router.push('/Screens/EstoqueAddScreen')}>
           <Text style={styles.headerButton}>+</Text>
         </TouchableOpacity>
       </ThemedView>
 
       <ThemedView style={styles.container}>
         {estoque.map(item => (
-          <TouchableOpacity key={item.cod} onPress={() => navigateToDetails(item)}>
+          <TouchableOpacity key={item.cod} onPress={() => navigateToEdit(item)}>
             <Estoque
               name={item.name}
               tipo={item.tipo}
@@ -112,21 +55,7 @@ export default function EstoqueListScreen() {
             />
           </TouchableOpacity>
         ))}
-        {location && (
-          <Text style={styles.locationText}>
-            Localização: {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
-          </Text>
-        )}
-        {errorMsg && <Text style={styles.locationText}>{errorMsg}</Text>}
       </ThemedView>
-
-      <EstoqueModal
-        visible={modalVisible}
-        onCancel={closeModal}
-        onAdd={onAdd}
-        onDelete={onDelete}
-        estoqueItem={selectedItem}
-      />
     </MyScrollView>
   );
 }
@@ -146,10 +75,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 32,
     paddingHorizontal: 20,
-  },
-  locationText: {
-    textAlign: 'center',
-    color: '#fff',
-    marginTop: 10,
   },
 });

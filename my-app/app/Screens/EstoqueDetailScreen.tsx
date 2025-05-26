@@ -22,7 +22,6 @@ export default function EstoqueDetailScreen() {
         const encontrado = estoqueData.find(item => item.cod.toString() === estoqueCod);
         setEstoqueItem(encontrado);
 
-        // ❌ Não abre modal automaticamente
       } catch (e) {
         console.error("Erro ao carregar detalhes do estoque:", e);
       }
